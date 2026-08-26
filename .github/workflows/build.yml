@@ -50,10 +50,10 @@ jobs:
 
       - name: Verify Unsigned_Payload patch is compiled in
         run: |
-          if strings build/bin/fluent-bit | grep -q "Unsigned_Payload"; then
-            echo "OK: unsigned_payload symbol present in binary"
+          if strings build/bin/fluent-bit | grep -q "unsigned_payload"; then
+            echo "OK: unsigned_payload option present in binary"
           else
-            echo "ERROR: unsigned_payload symbol NOT found in binary"
+            echo "ERROR: unsigned_payload option NOT found in binary"
             exit 1
           fi
 
