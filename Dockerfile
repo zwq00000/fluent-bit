@@ -13,6 +13,7 @@ RUN cmake -B build -S . \
       -DCMAKE_BUILD_TYPE=Release \
       -DFLB_RELEASE=On \
       -DFLB_TESTING=Off \
+      -DFLB_BINARY=On \
       -DFLB_JEMALLOC=On \
       -DFLB_SQLDB=On \
       -DFLB_HTTP_SERVER=On \
