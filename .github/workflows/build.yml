@@ -20,17 +20,10 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      # NOTE: we deliberately avoid docker/setup-buildx-action and
-      # docker/login-action here. The org's allowed-actions policy does not
-      # permit third-party "docker/*" actions, which caused the workflow to be
-      # rejected at dispatch (0 jobs). The GitHub-hosted runner already has the
-      # docker CLI and a running daemon, so we use it directly.
-      - name: Login to registry.graphicsoft.com.cn (if credentials provided)
-        if: ${{ secrets.REGISTRY_USERNAME != '' }}
-        run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.graphicsoft.com.cn \
-            -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
-
+      # NOTE: GitHub rejects workflows that reference the `secrets` context inside
+      # `if:` conditionals for fork repositories (workflow is declined at dispatch,
+      # resulting in 0 jobs). We therefore gate login/push on the secret at RUNTIME
+      # (inside `run:`), not via `if:`.
       - name: Build Docker image (self-contained, ubuntu:22.04)
         run: docker build -t "${IMAGE}" .
 
@@ -42,12 +35,17 @@ jobs:
           docker run --rm "${IMAGE}" sh -c 'strings /usr/local/bin/fluent-bit | grep -i unsigned_payload' \
             && echo "OK: unsigned_payload present" || echo "WARN: unsigned_payload not found in binary"
 
-      - name: Push Docker image
-        if: ${{ secrets.REGISTRY_USERNAME != '' }}
-        run: docker push "${IMAGE}"
+      - name: Login and push to registry (if credentials provided)
+        run: |
+          if [ -n "${{ secrets.REGISTRY_USERNAME }}" ]; then
+            echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.graphicsoft.com.cn \
+              -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+            docker push "${IMAGE}"
+          else
+            echo "REGISTRY_USERNAME not set; skipping login/push (image built locally only)."
+          fi
 
-      - name: Extract binary artifact (always useful, even if push is skipped)
-        if: always()
+      - name: Extract binary artifact
         run: |
           cid=$(docker create "${IMAGE}")
           docker cp "$cid":/usr/local/bin/fluent-bit ./fluent-bit || true
@@ -55,7 +53,6 @@ jobs:
           ls -lh ./fluent-bit 2>/dev/null || echo "no binary extracted"
 
       - name: Upload fluent-bit binary
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fluent-bit-v5.1.1-unsigned-payload
