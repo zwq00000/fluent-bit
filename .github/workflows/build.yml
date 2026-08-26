@@ -50,10 +50,10 @@ jobs:
 
       - name: Verify Unsigned_Payload patch is compiled in
         run: |
-          if docker run --rm --entrypoint strings "${IMAGE}" | grep -q "Unsigned_Payload"; then
-            echo "OK: unsigned_payload symbol present in image binary"
+          if strings build/bin/fluent-bit | grep -q "Unsigned_Payload"; then
+            echo "OK: unsigned_payload symbol present in binary"
           else
-            echo "ERROR: unsigned_payload symbol NOT found in image binary"
+            echo "ERROR: unsigned_payload symbol NOT found in binary"
             exit 1
           fi
 
