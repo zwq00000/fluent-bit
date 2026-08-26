@@ -1,0 +1,20 @@
+name: btest3-run-secrets
+
+on:
+  push:
+    branches:
+      - 'out-s3-unsigned-payload-v5.1.1'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: reference secret inside run only
+        run: |
+          echo "user=[${{ secrets.REGISTRY_USERNAME }}]"
+          if [ -n "${{ secrets.REGISTRY_USERNAME }}" ]; then
+            echo "secret present -> would login/push"
+          else
+            echo "secret absent -> skip login/push"
+          fi
