@@ -36,12 +36,12 @@ jobs:
               -DFLB_BACKTRACE=Off \
               -DFLB_SYSTEMD=Off
             cmake --build build --parallel $(nproc)
-            strip build/fluent-bit
+            strip build/bin/fluent-bit
           '
 
       - name: Prepare clean image build context
         run: |
-          cp build/fluent-bit docker/fluent-bit
+          cp build/bin/fluent-bit docker/fluent-bit
           cp conf/fluent-bit.conf docker/fluent-bit.conf
           ls -lh docker
 
@@ -61,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fluent-bit
-          path: build/fluent-bit
+          path: build/bin/fluent-bit
 
       - name: Export image as tar.gz for release download
         run: |
