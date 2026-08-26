@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libssl3 libstdc++6 zlib1g ca-certificates && \
+      libssl3 libstdc++6 zlib1g ca-certificates libyaml-0-2 libsystemd0 && \
       rm -rf /var/lib/apt/lists/* && \
       mkdir -p /etc/fluent-bit
 
