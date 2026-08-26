@@ -130,6 +130,7 @@ struct flb_s3 {
     int use_put_object;
     int send_content_md5;
     int static_file_path;
+    int unsigned_payload;   /* 使用 UNSIGNED-PAYLOAD 签名（兼容华为云 OBS） */
     int retry_exhausted_action;
     int compression;
     int s3_format;

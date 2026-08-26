@@ -1,0 +1,59 @@
+name: Build fluent-bit (out_s3 unsigned_payload patch)
+
+on:
+  push:
+    branches:
+      - 'out-s3-unsigned-payload-v5.1.1'
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout source (v5.1.1 based branch)
+        uses: actions/checkout@v4
+        with:
+          # v5.1.1 vendors all dependencies under lib/, no git submodules required
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake git flex bison \
+            libssl-dev libsystemd-dev
+
+      - name: Configure (CMake)
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DFLB_RELEASE=On \
+            -DFLB_TESTING=Off \
+            -DFLB_JEMALLOC=On \
+            -DFLB_SQLDB=On \
+            -DFLB_HTTP_SERVER=On \
+            -DFLB_BACKTRACE=Off \
+            -DFLB_SYSTEMD=Off
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Verify patch is compiled in
+        run: |
+          echo "fluent-bit version:"
+          ./build/fluent-bit --version || true
+          echo "checking for unsigned_payload option in binary:"
+          strings build/fluent-bit | grep -i "unsigned_payload" && echo "OK: unsigned_payload present" || echo "WARN: unsigned_payload not found in binary"
+
+      - name: Upload fluent-bit binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluent-bit-v5.1.1-unsigned-payload
+          path: build/fluent-bit
+          if-no-files-found: error

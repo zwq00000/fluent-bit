@@ -1332,7 +1332,9 @@ skip_size_validation:
     ctx->s3_client->port = ctx->port;
     ctx->s3_client->flags = 0;
     ctx->s3_client->proxy = NULL;
-    ctx->s3_client->s3_mode = S3_MODE_SIGNED_PAYLOAD;
+    ctx->s3_client->s3_mode = ctx->unsigned_payload
+                                  ? S3_MODE_UNSIGNED_PAYLOAD
+                                  : S3_MODE_SIGNED_PAYLOAD;
     ctx->s3_client->retry_requests = ctx->retry_requests;
 
     if (ctx->insecure == FLB_TRUE) {
@@ -4643,6 +4645,13 @@ static struct flb_config_map config_map[] = {
      "Disables behavior where UUID string is automatically appended to end of S3 key name when "
      "$UUID is not provided in s3_key_format. $UUID, time formatters, $TAG, and other dynamic "
      "key formatters all work as expected while this feature is set to true."
+    },
+
+    {
+     FLB_CONFIG_MAP_BOOL, "unsigned_payload", "false",
+     0, FLB_TRUE, offsetof(struct flb_s3, unsigned_payload),
+     "Use UNSIGNED-PAYLOAD for SigV4 signing instead of SIGNED-PAYLOAD "
+     "(required by Huawei OBS and some S3-compatible stores)"
     },
 
     {
