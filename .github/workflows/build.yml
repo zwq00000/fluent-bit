@@ -2,8 +2,7 @@ name: Build fluent-bit (out_s3 unsigned_payload patch)
 
 on:
   push:
-    branches:
-      - 'out-s3-unsigned-payload-v5.1.1'
+    branches: [out-s3-unsigned-payload-v5.1.1]
   workflow_dispatch:
 
 env:
@@ -11,50 +10,62 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     steps:
-      - name: Checkout source (v5.1.1 based branch)
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: false
-          fetch-depth: 1
 
-      # NOTE: GitHub rejects workflows that reference the `secrets` context inside
-      # `if:` conditionals for fork repositories (workflow is declined at dispatch,
-      # resulting in 0 jobs). We therefore gate login/push on the secret at RUNTIME
-      # (inside `run:`), not via `if:`.
-      - name: Build Docker image (self-contained, ubuntu:22.04)
-        run: docker build -t "${IMAGE}" .
-
-      - name: Verify patch compiled into image
+      - name: Build fluent-bit binary (inside ubuntu:22.04 for glibc match)
         run: |
-          echo "fluent-bit version in image:"
-          docker run --rm "${IMAGE}" --version
-          echo "checking for unsigned_payload option in image binary:"
-          docker run --rm "${IMAGE}" sh -c 'strings /usr/local/bin/fluent-bit | grep -i unsigned_payload' \
-            && echo "OK: unsigned_payload present" || echo "WARN: unsigned_payload not found in binary"
+          docker run --rm -v "$PWD":/src -w /src ubuntu:22.04 bash -c '
+            set -e
+            apt-get update
+            apt-get install -y --no-install-recommends build-essential cmake git flex bison libssl-dev libsystemd-dev ca-certificates
+            cmake -B build -S . \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DFLB_RELEASE=On \
+              -DFLB_TESTING=Off \
+              -DFLB_BINARY=On \
+              -DFLB_JEMALLOC=On \
+              -DFLB_SQLDB=On \
+              -DFLB_HTTP_SERVER=On \
+              -DFLB_BACKTRACE=Off \
+              -DFLB_SYSTEMD=Off
+            cmake --build build --parallel $(nproc)
+            strip build/fluent-bit
+          '
 
-      - name: Login and push to registry (if credentials provided)
+      - name: Prepare clean image build context
         run: |
-          if [ -n "${{ secrets.REGISTRY_USERNAME }}" ]; then
-            echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.graphicsoft.com.cn \
-              -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
-            docker push "${IMAGE}"
+          cp build/fluent-bit docker/fluent-bit
+          cp conf/fluent-bit.conf docker/fluent-bit.conf
+          ls -lh docker
+
+      - name: Build image
+        run: docker build -t "${IMAGE}" docker
+
+      - name: Verify Unsigned_Payload patch is compiled in
+        run: |
+          if docker run --rm --entrypoint strings "${IMAGE}" | grep -q "Unsigned_Payload"; then
+            echo "OK: unsigned_payload symbol present in image binary"
           else
-            echo "REGISTRY_USERNAME not set; skipping login/push (image built locally only)."
+            echo "ERROR: unsigned_payload symbol NOT found in image binary"
+            exit 1
           fi
 
-      - name: Extract binary artifact
-        run: |
-          cid=$(docker create "${IMAGE}")
-          docker cp "$cid":/usr/local/bin/fluent-bit ./fluent-bit || true
-          docker rm "$cid" || true
-          ls -lh ./fluent-bit 2>/dev/null || echo "no binary extracted"
-
-      - name: Upload fluent-bit binary
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fluent-bit-v5.1.1-unsigned-payload
-          path: fluent-bit
-          if-no-files-found: warn
+          name: fluent-bit
+          path: build/fluent-bit
+
+      - name: Login and push to registry (if credentials are configured)
+        run: |
+          if [ -n "${{ secrets.REGISTRY_USERNAME }}" ]; then
+            echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.graphicsoft.com.cn -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+            docker push "${IMAGE}"
+            echo "Pushed ${IMAGE}"
+          else
+            echo "Skipping login/push: REGISTRY_USERNAME secret is not set."
+          fi

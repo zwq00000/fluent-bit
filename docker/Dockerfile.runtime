@@ -1,0 +1,13 @@
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libssl3 libstdc++6 zlib1g ca-certificates && \
+      rm -rf /var/lib/apt/lists/* && \
+      mkdir -p /etc/fluent-bit
+
+COPY fluent-bit /usr/local/bin/fluent-bit
+COPY fluent-bit.conf /etc/fluent-bit/fluent-bit.conf
+
+ENTRYPOINT ["/usr/local/bin/fluent-bit"]
+CMD ["-c", "/etc/fluent-bit/fluent-bit.conf"]
