@@ -63,6 +63,10 @@ jobs:
           name: fluent-bit
           path: build/bin/fluent-bit
 
+      - name: Smoke test image (runtime shared libs load correctly)
+        run: |
+          docker run --rm --entrypoint /usr/local/bin/fluent-bit "${IMAGE}" -V
+
       - name: Export image as tar.gz for release download
         run: |
           docker save "${IMAGE}" | gzip -c > "fluent-bit-5.1.1-out_s3_patch.tar.gz"
