@@ -21,7 +21,7 @@ jobs:
           docker run --rm -v "$PWD":/src -w /src ubuntu:22.04 bash -c '
             set -e
             apt-get update
-            apt-get install -y --no-install-recommends build-essential cmake git flex bison libssl-dev libsystemd-dev ca-certificates
+            apt-get install -y --no-install-recommends build-essential cmake git flex bison libssl-dev libsystemd-dev ca-certificates libyaml-dev
             cmake -B build -S . \
               -DCMAKE_BUILD_TYPE=Release \
               -DFLB_RELEASE=On \
