@@ -6,12 +6,15 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: registry.graphicsoft.com.cn/library/fluent/fluent-bit:5.1.1-out_s3_patch
+  IMAGE: fluent-bit:5.1.1-out_s3_patch
+  RELEASE_TAG: v5.1.1-out_s3_patch
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,12 +63,24 @@ jobs:
           name: fluent-bit
           path: build/fluent-bit
 
-      - name: Login and push to registry (if credentials are configured)
+      - name: Export image as tar.gz for release download
         run: |
-          if [ -n "${{ secrets.REGISTRY_USERNAME }}" ]; then
-            echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.graphicsoft.com.cn -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
-            docker push "${IMAGE}"
-            echo "Pushed ${IMAGE}"
-          else
-            echo "Skipping login/push: REGISTRY_USERNAME secret is not set."
-          fi
+          docker save "${IMAGE}" | gzip -c > "fluent-bit-5.1.1-out_s3_patch.tar.gz"
+          ls -lh "fluent-bit-5.1.1-out_s3_patch.tar.gz"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Fluent Bit 5.1.1 (out_s3 Unsigned_Payload patch)
+          body: |
+            fluent-bit 5.1.1 含 out_s3 插件 `Unsigned_Payload` 选项补丁。
+
+            使用方式：
+            ```bash
+            docker load -i fluent-bit-5.1.1-out_s3_patch.tar.gz
+            docker run --rm fluent-bit:5.1.1-out_s3_patch -c /etc/fluent-bit/fluent-bit.conf
+            ```
+          files: fluent-bit-5.1.1-out_s3_patch.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
