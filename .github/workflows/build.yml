@@ -46,7 +46,7 @@ jobs:
           ls -lh docker
 
       - name: Build image
-        run: docker build -t "${IMAGE}" docker
+        run: docker build -t "${IMAGE}" -f docker/Dockerfile.runtime docker
 
       - name: Verify Unsigned_Payload patch is compiled in
         run: |
